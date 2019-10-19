@@ -26,6 +26,7 @@ module Bot exposing
     )
 
 import BotEngine.Interface_To_Host_20190808 as InterfaceToHost
+import Json.Encode
 import Sanderling.Sanderling as Sanderling exposing (MouseButton(..), centerFromRegion, effectMouseClickAtLocation)
 import Sanderling.SanderlingMemoryMeasurement as SanderlingMemoryMeasurement
     exposing
@@ -144,10 +145,15 @@ getProgramSequence sequenceName =
 
         MineInBelt ->
             { steps =
-                [ ( "when warp ends"
-                  , .shipUi
+                [ ( -- 2019-10-19 MutantWizard introduces name 'before warp finished' at https://forum.botengine.org/t/how-to-automate-mining-asteroids-in-eve-online/628/85?u=viir
+                    "before warp finished - repeat as long as we see the 'warp drive active'"
+                  , {- 2019-10-19 MutantWizard at https://forum.botengine.org/t/how-to-automate-mining-asteroids-in-eve-online/628/91?u=viir:
+                       A third method could be 3 lines of above the ship UI. While warping it displays in the first line “WARP DRIVE ACTIVE” second line displays destination and third line displays distance to destination. When it drops out of warp these 3 lines disappear completely.
+                    -}
+                    .shipUi
                         >> maybeNothingFromCanNotSeeIt
-                        >> Maybe.map isShipWarpingOrJumping
+                        >> Maybe.andThen (.indication >> maybeNothingFromCanNotSeeIt)
+                        >> Maybe.map (.jsonValue >> Json.Encode.encode 0 >> String.toLower >> String.contains "warp drive active")
                         >> Maybe.withDefault True
                         >> mapBoolToOtherType { true = RepeatStep, false = FinishStep }
                   )

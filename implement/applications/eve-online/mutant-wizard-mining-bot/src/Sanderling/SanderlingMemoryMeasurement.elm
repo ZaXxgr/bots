@@ -78,7 +78,9 @@ type alias ShipUiModule =
 
 
 type alias ShipUiIndication =
-    { maneuverType : MaybeVisible ShipManeuverType }
+    { maneuverType : MaybeVisible ShipManeuverType
+    , jsonValue : Json.Encode.Value
+    }
 
 
 type alias Target =
@@ -228,7 +230,9 @@ shipUiIndicationFromJsonValue jsonValue =
                 |> List.head
                 |> canNotSeeItFromMaybeNothing
     in
-    { maneuverType = maneuverType }
+    { maneuverType = maneuverType
+    , jsonValue = jsonValue
+    }
 
 
 shipUiIsStoppedDecoder : Json.Decode.Decoder (Maybe Bool)
