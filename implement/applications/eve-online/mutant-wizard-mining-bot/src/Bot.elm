@@ -139,6 +139,11 @@ getProgramSequence sequenceName =
                         >> Maybe.map (.uiElement >> clickOnUIElement MouseButtonLeft >> ApplyEffectAndFinishStep)
                         >> Maybe.withDefault RepeatStep
                   )
+                , ( "Travel to asteroid belt: Wait for warp to start."
+                  , isShipWarping
+                        >> Maybe.withDefault False
+                        >> mapBoolToOtherType { true = FinishStep, false = RepeatStep }
+                  )
                 ]
             , continueWith = MineInBelt
             }
@@ -147,13 +152,7 @@ getProgramSequence sequenceName =
             { steps =
                 [ ( -- 2019-10-19 MutantWizard introduces name 'before warp finished' at https://forum.botengine.org/t/how-to-automate-mining-asteroids-in-eve-online/628/85?u=viir
                     "before warp finished - repeat as long as we see the 'warp drive active'"
-                  , {- 2019-10-19 MutantWizard at https://forum.botengine.org/t/how-to-automate-mining-asteroids-in-eve-online/628/91?u=viir:
-                       A third method could be 3 lines of above the ship UI. While warping it displays in the first line “WARP DRIVE ACTIVE” second line displays destination and third line displays distance to destination. When it drops out of warp these 3 lines disappear completely.
-                    -}
-                    .shipUi
-                        >> maybeNothingFromCanNotSeeIt
-                        >> Maybe.andThen (.indication >> maybeNothingFromCanNotSeeIt)
-                        >> Maybe.map (.jsonValue >> Json.Encode.encode 0 >> String.toLower >> String.contains "warp drive active")
+                  , isShipWarping
                         >> Maybe.withDefault True
                         >> mapBoolToOtherType { true = RepeatStep, false = FinishStep }
                   )
@@ -501,18 +500,15 @@ infoPanelRouteFirstMarkerFromMemoryMeasurement =
         >> Maybe.andThen List.head
 
 
-isShipWarpingOrJumping : ShipUi -> Bool
-isShipWarpingOrJumping =
-    .indication
+isShipWarping : MemoryMeasurement -> Maybe Bool
+isShipWarping =
+    {- 2019-10-19 MutantWizard at https://forum.botengine.org/t/how-to-automate-mining-asteroids-in-eve-online/628/91?u=viir:
+       A third method could be 3 lines of above the ship UI. While warping it displays in the first line “WARP DRIVE ACTIVE” second line displays destination and third line displays distance to destination. When it drops out of warp these 3 lines disappear completely.
+    -}
+    .shipUi
         >> maybeNothingFromCanNotSeeIt
-        >> Maybe.andThen (.maneuverType >> maybeNothingFromCanNotSeeIt)
-        >> Maybe.map
-            (\maneuverType ->
-                [ SanderlingMemoryMeasurement.Warp, SanderlingMemoryMeasurement.Jump ]
-                    |> List.member maneuverType
-            )
-        -- If the ship is just floating in space, there might be no indication displayed.
-        >> Maybe.withDefault False
+        >> Maybe.andThen (.indication >> maybeNothingFromCanNotSeeIt)
+        >> Maybe.map (.jsonValue >> Json.Encode.encode 0 >> String.toLower >> String.contains "warp drive active")
 
 
 mapBoolToOtherType : { true : a, false : a } -> Bool -> a
