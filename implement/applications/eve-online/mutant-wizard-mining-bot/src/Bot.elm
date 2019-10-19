@@ -168,10 +168,38 @@ getProgramSequence sequenceName =
                         >> Maybe.map (.uiElement >> clickOnUIElement MouseButtonLeft >> ApplyEffectAndFinishStep)
                         >> Maybe.withDefault RepeatStep
                   )
-                , ( "(for reliability wait until ship stopped)"
-                  , shipIsStopped
-                        >> Maybe.withDefault False
-                        >> mapBoolToOtherType { true = FinishStep, false = RepeatStep }
+                , ( {- 2019-10-19 MutantWizard adds 'turn the lasers on when in range': https://forum.botengine.org/t/how-to-automate-mining-asteroids-in-eve-online/628/85?u=viir
+                       Later defines meaning at https://forum.botengine.org/t/how-to-automate-mining-asteroids-in-eve-online/628/91?u=viir:
+                       Could we achieve that by clicking on the modules in that step? -> Yes
+                    -}
+                    "Maybe you can turn the lasers on when in range. 8 km from the Ore Asteroid works for both Miner I and Miner II. -> Click first module."
+                  , \memoryReading ->
+                        if (memoryReading |> firstAsteroidFromOverviewWindowInRange) /= Nothing then
+                            memoryReading
+                                |> shipUiModules
+                                |> List.head
+                                |> Maybe.map (.uiElement >> clickOnUIElement MouseButtonLeft >> ApplyEffectAndFinishStep)
+                                |> Maybe.withDefault RepeatStep
+
+                        else
+                            RepeatStep
+                  )
+                , ( {- 2019-10-19 MutantWizard adds 'turn the lasers on when in range': https://forum.botengine.org/t/how-to-automate-mining-asteroids-in-eve-online/628/85?u=viir
+                       Later defines meaning at https://forum.botengine.org/t/how-to-automate-mining-asteroids-in-eve-online/628/91?u=viir:
+                       Could we achieve that by clicking on the modules in that step? -> Yes
+                    -}
+                    "Maybe you can turn the lasers on when in range. 8 km from the Ore Asteroid works for both Miner I and Miner II. -> Click second module."
+                  , \memoryReading ->
+                        if (memoryReading |> firstAsteroidFromOverviewWindowInRange) /= Nothing then
+                            memoryReading
+                                |> shipUiModules
+                                |> List.drop 1
+                                |> List.head
+                                |> Maybe.map (.uiElement >> clickOnUIElement MouseButtonLeft >> ApplyEffectAndFinishStep)
+                                |> Maybe.withDefault RepeatStep
+
+                        else
+                            RepeatStep
                   )
                 , ( "when in range right click ore asteroid"
                   , firstAsteroidFromOverviewWindowInRange
@@ -393,9 +421,14 @@ firstAsteroidFromOverviewWindowInRange =
             )
 
 
+{-| 2019-10-19 define 'in range': <https://forum.botengine.org/t/how-to-automate-mining-asteroids-in-eve-online/628/85?u=viir>
+
+> 8 km from the Ore Asteroid works for both Miner I and Miner II.
+
+-}
 overviewWindowEntryIsInRange : OverviewWindowEntry -> Maybe Bool
 overviewWindowEntryIsInRange =
-    .distanceInMeters >> Result.map (\distanceInMeters -> distanceInMeters < 1000) >> Result.toMaybe
+    .distanceInMeters >> Result.map (\distanceInMeters -> distanceInMeters < 8000) >> Result.toMaybe
 
 
 overviewWindowEntriesRepresentingAsteroids : MemoryMeasurement -> List OverviewWindowEntry
@@ -404,6 +437,7 @@ overviewWindowEntriesRepresentingAsteroids =
         >> maybeNothingFromCanNotSeeIt
         >> Maybe.map (.entries >> List.filter overviewWindowEntryRepresentsAnAsteroid)
         >> Maybe.withDefault []
+        >> List.sortBy (.distanceInMeters >> Result.withDefault 999999)
 
 
 overviewWindowEntryRepresentsAnAsteroid : OverviewWindowEntry -> Bool
